@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/urfave/cli/v2"
 	"os"
+	"path/filepath"
 	"strings"
 	"submonkey/submonkey"
 	"submonkey/util"
@@ -11,6 +12,11 @@ import (
 
 // New creates a new CLI application
 func New() *cli.App {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		cacheDir = os.TempDir()
+	}
+	cacheDir = filepath.Join(cacheDir, "submonkey")
 	return &cli.App{
 		Name:                   "submonkey",
 		Usage:                  "Create video from Reddit posts",
@@ -28,7 +34,10 @@ func New() *cli.App {
 			&cli.StringFlag{Name: "sort", Aliases: []string{"s"}, Value: "hot", Usage: "sort posts [hot, top, rising, new, controversial]"},
 			&cli.StringFlag{Name: "time", Aliases: []string{"t"}, Value: "week", Usage: "time period to sort posts by [hour, day, week, month, year, all]"},
 			&cli.IntFlag{Name: "limit", Aliases: []string{"l"}, Value: 5, Usage: "number of posts to include in the video"},
+			&cli.BoolFlag{Name: "nsfw", Aliases: []string{"n"}, Usage: "include NSFW content"},
 			&cli.StringFlag{Name: "size", Aliases: []string{"S"}, Value: "640x360", Usage: "dimensions of the output video"},
+			&cli.StringFlag{Name: "cache-dir", Aliases: []string{"C"}, Value: cacheDir, Usage: "cache directory for video downloads"},
+			&cli.StringFlag{Name: "cache-keep", Aliases: []string{"K"}, Value: "1d", Usage: "duration after which to delete cache entries"},
 		},
 	}
 }
@@ -39,6 +48,9 @@ func execCreate(c *cli.Context) error {
 	time := c.String("time")
 	limit := c.Int("limit")
 	size := strings.ReplaceAll(c.String("size"), "x", ":")
+	nsfw := c.Bool("nsfw")
+	cacheDir := c.String("cache-dir")
+	cacheKeep := c.String("cache-keep")
 	if c.NArg() < 1 {
 		return errors.New("missing output file, see --help for usage details")
 	} else if limit > 100 {
@@ -48,13 +60,20 @@ func execCreate(c *cli.Context) error {
 	} else if !util.InStringList([]string{"hour", "day", "week", "month", "year", "all"}, time) {
 		return errors.New("time must be any of: hour, day, week, month, year, all")
 	}
+	cacheKeepDuration, err := util.ParseDuration(cacheKeep)
+	if err != nil {
+		return err
+	}
 	filename := c.Args().Get(0)
 	return submonkey.CreateVideo(&submonkey.CreateOptions{
 		Filter:     filter,
 		Sort:       sort,
 		Time:       time,
 		Limit:      limit,
+		NSFW:       nsfw,
 		OutputSize: size,
 		OutputFile: filename,
+		CacheDir:   cacheDir,
+		CacheKeep:  cacheKeepDuration,
 	})
 }

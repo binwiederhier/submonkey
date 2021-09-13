@@ -3,6 +3,7 @@ package submonkey
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/vartanbeno/go-reddit/v2/reddit"
 	"io/ioutil"
@@ -10,8 +11,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"submonkey/util"
+	"time"
+)
+
+var (
+	regexExcludeExts = regexp.MustCompile(`(png|jpe?g)$`)
 )
 
 type CreateOptions struct {
@@ -19,11 +25,16 @@ type CreateOptions struct {
 	Sort       string
 	Time       string
 	Limit      int
+	NSFW       bool
 	OutputSize string
 	OutputFile string
+	CacheDir   string
+	CacheKeep  time.Duration
 }
 
 func CreateVideo(opts *CreateOptions) error {
+	cleanCache(opts.CacheDir, opts.CacheKeep)
+	defer cleanCache(opts.CacheDir, opts.CacheKeep)
 	if err := checkDependencies(); err != nil {
 		return err
 	}
@@ -32,7 +43,7 @@ func CreateVideo(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
-	filenames, err := downloadFiles(posts)
+	filenames, err := downloadFiles(opts, posts)
 	if err != nil {
 		return err
 	}
@@ -60,7 +71,7 @@ func retrievePosts(opts *CreateOptions) (posts []*reddit.Post, err error) {
 	ctx := context.Background()
 	client := reddit.DefaultClient()
 	listOpts := &reddit.ListOptions{
-		Limit: opts.Limit, // max. is 100, otherwise we have to use response.After
+		Limit: 100, // always 100, so we can filter out without extra logic; if this is ever > 100, use resp.After
 	}
 	listPostOpts := &reddit.ListPostOptions{
 		ListOptions: *listOpts,
@@ -83,29 +94,34 @@ func retrievePosts(opts *CreateOptions) (posts []*reddit.Post, err error) {
 	return
 }
 
-func downloadFiles(posts []*reddit.Post) ([]string, error) {
+func downloadFiles(opts *CreateOptions, posts []*reddit.Post) ([]string, error) {
+	if err := os.MkdirAll(opts.CacheDir, 0700); err != nil {
+		return nil, err
+	}
 	filenames := make([]string, 0)
 	for _, post := range posts {
-		if post.URL == "" || strings.HasSuffix(post.URL, ".jpg") {
+		if err := includePost(opts, post); err != nil {
 			continue
 		}
-		filename, err := downloadFile("tmp", post)
+		filename, err := downloadFile(opts.CacheDir, post)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		filenames = append(filenames, filename)
+		if len(filenames) == opts.Limit {
+			break
+		}
 	}
 	return filenames, nil
 }
 
-func downloadFile(dir string, post *reddit.Post) (string, error) {
-	imageFilename := filepath.Join(dir, post.ID+".mp4")
-	metaFilename := filepath.Join(dir, post.ID+".json")
+func downloadFile(cacheDir string, post *reddit.Post) (string, error) {
+	imageFilename := filepath.Join(cacheDir, post.ID+".mp4")
+	metaFilename := filepath.Join(cacheDir, post.ID+".json")
 	if _, err := os.Stat(imageFilename); err == nil {
 		log.Printf("Already downloaded %s, %s", post.ID, post.URL)
 		return imageFilename, nil
 	}
-	log.Printf("Downloading %s, %s ...", post.ID, post.URL)
 	args := []string{
 		"--output", imageFilename,
 		"--merge-output-format", "mp4",
@@ -122,5 +138,31 @@ func downloadFile(dir string, post *reddit.Post) (string, error) {
 	if err := ioutil.WriteFile(metaFilename, metaBytes, 0600); err != nil {
 		return "", err
 	}
+	log.Printf("Downloaded %s, %s ...", post.ID, post.URL)
 	return imageFilename, nil
+}
+
+func includePost(opts *CreateOptions, post *reddit.Post) error {
+	if post.URL == "" {
+		return errors.New("empty URL")
+	} else if post.NSFW && !opts.NSFW {
+		return errors.New("tagged NSFW")
+	} else if regexExcludeExts.MatchString(post.URL) {
+		return errors.New("unsupported file")
+	}
+	return nil
+}
+
+func cleanCache(cacheDir string, keep time.Duration) {
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil || time.Since(info.ModTime()) < keep {
+			continue
+		}
+		_ = os.Remove(filepath.Join(cacheDir, entry.Name()))
+	}
 }

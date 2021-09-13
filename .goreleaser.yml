@@ -1,0 +1,52 @@
+before:
+  hooks:
+    - go mod download
+builds:
+  - binary: submonkey
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+nfpms:
+  -
+    package_name: submonkey
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
+    homepage: https://heckel.io/submonkey
+    maintainer: Philipp C. Heckel <philipp.heckel@gmail.com>
+    description: Generate videos from Reddit
+    license: Apache 2.0
+    formats:
+      - deb
+      - rpm
+    dependencies:
+      - ffmpeg
+    bindir: /usr/bin
+archives:
+  -
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - README.md
+    replacements:
+      386: i386
+      amd64: x86_64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+dockers:
+  - dockerfile: Dockerfile
+    ids:
+      - submonkey
+    image_templates:
+      - "binwiederhier/submonkey:latest"
+      - "binwiederhier/submonkey:{{ .Tag }}"
+      - "binwiederhier/submonkey:v{{ .Major }}.{{ .Minor }}"

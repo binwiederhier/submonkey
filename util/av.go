@@ -58,8 +58,8 @@ func ConcatVideos(infiles []string, scale, outfile string) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
-//
-// https://stackoverflow.com/a/21447100/1440785
+// HasAudioStream returns true if the given file has an audio stream and false if it has not
+// See https://stackoverflow.com/a/21447100/1440785
 func HasAudioStream(filename string) (bool, error) {
 	cmd := exec.Command("ffprobe", "-show_streams", "-select_streams", "a", "-loglevel", "error", filename)
 	output, err := cmd.CombinedOutput()

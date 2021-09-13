@@ -7,29 +7,45 @@ I made this just for fun, mainly so I can generate an endless stream of animal v
 [r/AnimalsBeingBros](https://www.reddit.com/r/AnimalsBeingBros) and [r/AnimalsBeingDerps](https://www.reddit.com/r/AnimalsBeingDerps).
 
 ## Usage
-After [installing submonkey](#installation), you may run it like this:
+After [installing submonkey](#installation), you may run it like this.
 
-Generate a video from the 5 _hottest_ posts on [r/AnimalsBeingBros](https://www.reddit.com/r/AnimalsBeingBros) and 
+_Example 1:_ Generate a video from the 5 _hottest_ posts on [r/AnimalsBeingBros](https://www.reddit.com/r/AnimalsBeingBros) and 
 [r/AnimalsBeingDerps](https://www.reddit.com/r/AnimalsBeingDerps), within the last week, as 360p video (bad quality):
 ```
 $ submonkey animals.mp4
+2021/09/13 09:42:09 Retrieving hot posts for subreddit(s) AnimalsBeingBros+AnimalsBeingDerps ...
+2021/09/13 09:42:11 Downloading up to 5 video(s) ...
+2021/09/13 09:42:12 - Downloaded pmzcar (1/5), https://v.redd.it/myh6xa96j4n71 ...
+2021/09/13 09:42:14 - Downloaded pn3o1m (2/5), https://v.redd.it/53zirs95p5n71 ...
+2021/09/13 09:42:16 - Downloaded pndyvs (3/5), https://v.redd.it/09lxtrl1g9n71 ...
+2021/09/13 09:42:18 - Downloaded pnczrp (4/5), https://v.redd.it/xe2lcvc739n71 ...
+2021/09/13 09:42:21 - Downloaded pmv292 (5/5), https://v.redd.it/ewiopd5ie3n71 ...
+2021/09/13 09:42:21 Generating video animals.mp4 ...
+2021/09/13 09:42:40 Done.
 ```
 
-Generate a video from the 10 _top_ posts on [r/funny](https://www.reddit.com/r/funny), within the last 24 hours, 
+_Example 2:_ Generate a video from the 3 _top_ posts on [r/funny](https://www.reddit.com/r/funny), within the last 24 hours, 
 as 720p video:
 ```
 $ submonkey \
   --sort top \
   --time day \
   --filter funny \
-  --limit 10 \
+  --limit 3 \
   --size 720p \
   funny.mp4 
+2021/09/13 09:43:07 Retrieving top posts for subreddit(s) funny ...
+2021/09/13 09:43:08 Downloading up to 3 video(s) ...
+2021/09/13 09:43:09 - Downloaded pn04w9 (1/3), https://v.redd.it/u6gakr7oq4n71 ...
+2021/09/13 09:43:11 - Downloaded pmti5s (2/3), https://v.redd.it/jnwu323nz2n71 ...
+2021/09/13 09:43:13 - Downloaded pmtuez (3/3), https://i.redd.it/pyjom9l933n71.gif ...
+2021/09/13 09:43:13 Generating video funny.mp4 ...
+2021/09/13 09:44:05 Done.
 ```
 
 ## Installation
 Before installing submonkey, please install [youtube-dl](https://youtube-dl.org/) and [FFmpeg](https://ffmpeg.org/) first.
-If you're on Linux, you only need to install `youtube-dl` manually; `ffmpeg` is installed as a package dependency.
+If you're on Linux, you only need to install `youtube-dl` manually. `ffmpeg` is installed as a package dependency.
 
 Binaries can be found on the [releases page](https://github.com/binwiederhier/submonkey/releases). 
 
@@ -66,7 +82,7 @@ sudo curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/bin/youtube-d
 rpm -ivh https://github.com/binwiederhier/submonkey/releases/download/v0.1.0/submonkey_0.1.0_amd64.rpm
 ```
 
-**Docker:**
+**Docker:**   
 Since submonkey generates files, you should pass `-u` to ensure that you run it with your own user and group, and 
 to mount the `/submonkey` directory wherever you want the output files to be using `-v`. You may also mount 
 `/.cache/submonkey` if you like to keep the download cache around.
@@ -120,7 +136,7 @@ GLOBAL OPTIONS:
 
 Try 'submonkey COMMAND --help' for more information.
 
-submonkey dev (unknown), runtime go1.17, built at unknown
+submonkey 0.1.0 (930324d), runtime go1.17, built at 2021-09-13T13:35:10Z
 Copyright (C) 2021 Philipp C. Heckel, distributed under the Apache License 2.0
 ``` 
 

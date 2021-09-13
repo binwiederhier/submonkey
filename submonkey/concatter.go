@@ -24,6 +24,10 @@ type CreateOptions struct {
 }
 
 func CreateVideo(opts *CreateOptions) error {
+	if err := checkDependencies(); err != nil {
+		return err
+	}
+	log.Printf("Retrieving %s posts for subreddit(s) %s ...", opts.Sort, opts.Filter)
 	posts, err := retrievePosts(opts)
 	if err != nil {
 		return err
@@ -32,11 +36,23 @@ func CreateVideo(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Generating video %s ...", opts.OutputFile)
 	if output, err := util.ConcatVideos(filenames, opts.OutputSize, opts.OutputFile); err != nil {
 		log.Fatal(string(output))
 		return err
 	}
 	log.Printf("Done.")
+	return nil
+}
+
+func checkDependencies() error {
+	if err := util.Run("ffmpeg", "-version"); err != nil {
+		return fmt.Errorf("ffmpeg check failed, please install ffmpeg: %s", err.Error())
+	} else if err := util.Run("ffprobe", "-version"); err != nil {
+		return fmt.Errorf("ffprobe check failed, please install ffmpeg: %s", err.Error())
+	} else if err := util.Run("youtube-dl", "--version"); err != nil {
+		return fmt.Errorf("youtube-dl check failed, please install youtube-dl: %s", err.Error())
+	}
 	return nil
 }
 

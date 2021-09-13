@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os/exec"
 )
 
@@ -33,7 +32,6 @@ import (
 // output.mp4
 //
 func ConcatVideos(infiles []string, scale, outfile string) ([]byte, error) {
-	log.Printf("Generating video %s ...", outfile)
 	var filter, concat string
 	for i, filename := range infiles {
 		filter += fmt.Sprintf("[%d:v]scale=%s:force_original_aspect_ratio=decrease,pad=%s:(ow-iw)/2:(oh-ih)/2,setsar=1[v%d];\n", i, scale, scale, i)
@@ -57,7 +55,6 @@ func ConcatVideos(infiles []string, scale, outfile string) ([]byte, error) {
 	args = append(args, "-filter_complex", filter)
 	args = append(args, "-map", "[v]", "-map", "[a]", outfile)
 	cmd := exec.Command("ffmpeg", args...)
-	//log.Printf("command: %s", cmd.String())
 	return cmd.CombinedOutput()
 }
 

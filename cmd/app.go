@@ -19,8 +19,8 @@ func New() *cli.App {
 	cacheDir = filepath.Join(cacheDir, "submonkey")
 	return &cli.App{
 		Name:                   "submonkey",
-		Usage:                  "Create video from Reddit posts",
-		UsageText:              "submonkey [OPTIONS..] OUTFILE",
+		Usage:                  "Create videos from Reddit posts",
+		UsageText:              "submonkey [OPTIONS..] OUTFILE.mp4",
 		HideHelp:               true,
 		HideVersion:            true,
 		EnableBashCompletion:   true,
@@ -35,7 +35,7 @@ func New() *cli.App {
 			&cli.StringFlag{Name: "time", Aliases: []string{"t"}, Value: "week", Usage: "time period to sort posts by [hour, day, week, month, year, all]"},
 			&cli.IntFlag{Name: "limit", Aliases: []string{"l"}, Value: 5, Usage: "number of posts to include in the video"},
 			&cli.BoolFlag{Name: "nsfw", Aliases: []string{"n"}, Usage: "include NSFW content"},
-			&cli.StringFlag{Name: "size", Aliases: []string{"S"}, Value: "640x360", Usage: "dimensions of the output video"},
+			&cli.StringFlag{Name: "size", Aliases: []string{"S"}, Value: "360p", Usage: "dimensions of the output video [360p, 720p, 1080p, WxH]"},
 			&cli.StringFlag{Name: "cache-dir", Aliases: []string{"C"}, Value: cacheDir, Usage: "cache directory for video downloads"},
 			&cli.StringFlag{Name: "cache-keep", Aliases: []string{"K"}, Value: "1d", Usage: "duration after which to delete cache entries"},
 		},
@@ -47,7 +47,7 @@ func execCreate(c *cli.Context) error {
 	sort := c.String("sort")
 	time := c.String("time")
 	limit := c.Int("limit")
-	size := strings.ReplaceAll(c.String("size"), "x", ":")
+	size := c.String("size")
 	nsfw := c.Bool("nsfw")
 	cacheDir := c.String("cache-dir")
 	cacheKeep := c.String("cache-keep")
@@ -59,6 +59,16 @@ func execCreate(c *cli.Context) error {
 		return errors.New("sort must be any of: hot, top, rising, new, controversial")
 	} else if !util.InStringList([]string{"hour", "day", "week", "month", "year", "all"}, time) {
 		return errors.New("time must be any of: hour, day, week, month, year, all")
+	}
+	switch size {
+	case "360p":
+		size = "640:360"
+	case "720p":
+		size = "1280:720"
+	case "1080p":
+		size = "1920:1080"
+	default:
+		size = strings.ReplaceAll(size, "x", ":")
 	}
 	cacheKeepDuration, err := util.ParseDuration(cacheKeep)
 	if err != nil {

@@ -2,11 +2,9 @@ package submonkey
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/vartanbeno/go-reddit/v2/reddit"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -43,6 +41,7 @@ func CreateVideo(opts *CreateOptions) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Downloading up to %d video(s) ...", opts.Limit)
 	filenames, err := downloadFiles(opts, posts)
 	if err != nil {
 		return err
@@ -103,7 +102,7 @@ func downloadFiles(opts *CreateOptions, posts []*reddit.Post) ([]string, error) 
 		if err := includePost(opts, post); err != nil {
 			continue
 		}
-		filename, err := downloadFile(opts.CacheDir, post)
+		filename, err := downloadFile(opts, post, len(filenames)+1)
 		if err != nil {
 			continue
 		}
@@ -112,18 +111,20 @@ func downloadFiles(opts *CreateOptions, posts []*reddit.Post) ([]string, error) 
 			break
 		}
 	}
+	if len(filenames) < opts.Limit {
+		log.Printf("- No other videos in listing")
+	}
 	return filenames, nil
 }
 
-func downloadFile(cacheDir string, post *reddit.Post) (string, error) {
-	imageFilename := filepath.Join(cacheDir, post.ID+".mp4")
-	metaFilename := filepath.Join(cacheDir, post.ID+".json")
-	if _, err := os.Stat(imageFilename); err == nil {
-		log.Printf("Already downloaded %s, %s", post.ID, post.URL)
-		return imageFilename, nil
+func downloadFile(opts *CreateOptions, post *reddit.Post, num int) (string, error) {
+	videoFile := filepath.Join(opts.CacheDir, post.ID+".mp4")
+	if _, err := os.Stat(videoFile); err == nil {
+		log.Printf("- Already downloaded %s (%d/%d), %s", post.ID, num, opts.Limit, post.URL)
+		return videoFile, nil
 	}
 	args := []string{
-		"--output", imageFilename,
+		"--output", videoFile,
 		"--merge-output-format", "mp4",
 		post.URL,
 	}
@@ -131,15 +132,8 @@ func downloadFile(cacheDir string, post *reddit.Post) (string, error) {
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
-	metaBytes, err := json.Marshal(post)
-	if err != nil {
-		return "", err
-	}
-	if err := ioutil.WriteFile(metaFilename, metaBytes, 0600); err != nil {
-		return "", err
-	}
-	log.Printf("Downloaded %s, %s ...", post.ID, post.URL)
-	return imageFilename, nil
+	log.Printf("- Downloaded %s (%d/%d), %s ...", post.ID, num, opts.Limit, post.URL)
+	return videoFile, nil
 }
 
 func includePost(opts *CreateOptions, post *reddit.Post) error {

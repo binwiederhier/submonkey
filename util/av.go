@@ -29,9 +29,10 @@ import (
 //    [v0][0:a][v1][2:a]concat=n=2:v=1:a=1[v][a]
 //  " \
 //  -map "[v]" -map "[a]" \
+//  -metadata comment="Created with submonkey ..." \
 // output.mp4
 //
-func ConcatVideos(infiles []string, scale, outfile string) ([]byte, error) {
+func ConcatVideos(infiles []string, scale, comment, outfile string) ([]byte, error) {
 	var filter, concat string
 	for i, filename := range infiles {
 		filter += fmt.Sprintf("[%d:v]scale=%s:force_original_aspect_ratio=decrease,pad=%s:(ow-iw)/2:(oh-ih)/2,setsar=1[v%d];\n", i, scale, scale, i)
@@ -53,6 +54,7 @@ func ConcatVideos(infiles []string, scale, outfile string) ([]byte, error) {
 	}
 	args = append(args, "-f", "lavfi", "-t", "0.1", "-i", "anullsrc")
 	args = append(args, "-filter_complex", filter)
+	args = append(args, "-metadata", fmt.Sprintf("comment=%s", comment))
 	args = append(args, "-map", "[v]", "-map", "[a]", outfile)
 	cmd := exec.Command("ffmpeg", args...)
 	return cmd.CombinedOutput()

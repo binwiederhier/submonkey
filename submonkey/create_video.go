@@ -28,6 +28,7 @@ type CreateOptions struct {
 	OutputFile string
 	CacheDir   string
 	CacheKeep  time.Duration
+	Version    string
 }
 
 func CreateVideo(opts *CreateOptions) error {
@@ -42,12 +43,13 @@ func CreateVideo(opts *CreateOptions) error {
 		return err
 	}
 	log.Printf("Downloading up to %d video(s) ...", opts.Limit)
-	filenames, err := downloadFiles(opts, posts)
+	filenames, posts, err := downloadFiles(opts, posts)
 	if err != nil {
 		return err
 	}
 	log.Printf("Generating video %s ...", opts.OutputFile)
-	if output, err := util.ConcatVideos(filenames, opts.OutputSize, opts.OutputFile); err != nil {
+	comment := generateComment(posts, opts)
+	if output, err := util.ConcatVideos(filenames, opts.OutputSize, comment, opts.OutputFile); err != nil {
 		log.Fatal(string(output))
 		return err
 	}
@@ -93,12 +95,13 @@ func retrievePosts(opts *CreateOptions) (posts []*reddit.Post, err error) {
 	return
 }
 
-func downloadFiles(opts *CreateOptions, posts []*reddit.Post) ([]string, error) {
+func downloadFiles(opts *CreateOptions, inposts []*reddit.Post) (filenames []string, posts []*reddit.Post, err error) {
 	if err := os.MkdirAll(opts.CacheDir, 0700); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	filenames := make([]string, 0)
-	for _, post := range posts {
+	filenames = make([]string, 0)
+	posts = make([]*reddit.Post, 0)
+	for _, post := range inposts {
 		if err := includePost(opts, post); err != nil {
 			continue
 		}
@@ -107,6 +110,7 @@ func downloadFiles(opts *CreateOptions, posts []*reddit.Post) ([]string, error) 
 			continue
 		}
 		filenames = append(filenames, filename)
+		posts = append(posts, post)
 		if len(filenames) == opts.Limit {
 			break
 		}
@@ -114,7 +118,7 @@ func downloadFiles(opts *CreateOptions, posts []*reddit.Post) ([]string, error) 
 	if len(filenames) < opts.Limit {
 		log.Printf("- No other videos in listing")
 	}
-	return filenames, nil
+	return filenames, posts, nil
 }
 
 func downloadFile(opts *CreateOptions, post *reddit.Post, num int) (string, error) {
@@ -145,6 +149,16 @@ func includePost(opts *CreateOptions, post *reddit.Post) error {
 		return errors.New("unsupported file")
 	}
 	return nil
+}
+
+func generateComment(posts []*reddit.Post, opts *CreateOptions) string {
+	comment := fmt.Sprintf("Created with submonkey %s, https://heckel.io/submonkey\n", opts.Version)
+	comment += fmt.Sprintf("Subreddit(s): %s, sorted by %s (%s)\n\n", opts.Filter, opts.Sort, opts.Time)
+	comment += "Videos:\n\n"
+	for i, post := range posts {
+		comment += fmt.Sprintf("#%d: %s\nhttps://reddit.com%s\n%s\n\n", i+1, post.Title, post.Permalink, post.URL)
+	}
+	return comment
 }
 
 func cleanCache(cacheDir string, keep time.Duration) {

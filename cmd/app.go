@@ -85,5 +85,6 @@ func execCreate(c *cli.Context) error {
 		OutputFile: filename,
 		CacheDir:   cacheDir,
 		CacheKeep:  cacheKeepDuration,
+		Version:    c.App.Version,
 	})
 }

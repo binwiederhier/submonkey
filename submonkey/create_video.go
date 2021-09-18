@@ -24,6 +24,7 @@ type CreateOptions struct {
 	Time       string
 	Limit      int
 	NSFW       bool
+	Duration   time.Duration
 	OutputSize string
 	OutputFile string
 	CacheDir   string
@@ -116,7 +117,7 @@ func downloadFiles(opts *CreateOptions, inposts []*reddit.Post) (filenames []str
 		}
 	}
 	if len(filenames) < opts.Limit {
-		log.Printf("- No other videos in listing")
+		log.Printf("- No other matching videos in listing")
 	}
 	return filenames, posts, nil
 }
@@ -129,6 +130,7 @@ func downloadFile(opts *CreateOptions, post *reddit.Post, num int) (string, erro
 	}
 	args := []string{
 		"--output", videoFile,
+		"--match-filter", fmt.Sprintf("duration <? %d", int(opts.Duration.Seconds())), // "<?" ignores duration if not known
 		"--merge-output-format", "mp4",
 		post.URL,
 	}
@@ -136,7 +138,14 @@ func downloadFile(opts *CreateOptions, post *reddit.Post, num int) (string, erro
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
-	log.Printf("- Downloaded %s (%d/%d), %s ...", post.ID, num, opts.Limit, post.URL)
+	meta, err := util.VideoMetadata(videoFile)
+	if err != nil {
+		return "", err
+	}
+	if meta.Duration > opts.Duration {
+		return "", errors.New("video exceeds max duration")
+	}
+	log.Printf("- Downloaded %s (%d/%d), %s", post.ID, num, opts.Limit, post.URL)
 	return videoFile, nil
 }
 

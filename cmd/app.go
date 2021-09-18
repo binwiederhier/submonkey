@@ -8,6 +8,7 @@ import (
 	"strings"
 	"submonkey/submonkey"
 	"submonkey/util"
+	"time"
 )
 
 // New creates a new CLI application
@@ -30,11 +31,12 @@ func New() *cli.App {
 		ErrWriter:              os.Stderr,
 		Action:                 execCreate,
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "filter", Aliases: []string{"f"}, Value: "AnimalsBeingBros+AnimalsBeingDerps", Usage: "source subreddit(s) to be used for videos"},
+			&cli.StringFlag{Name: "filter", Aliases: []string{"f"}, Value: "AnimalsBeingBros+aww", Usage: "source subreddit(s) to be used for videos"},
 			&cli.StringFlag{Name: "sort", Aliases: []string{"s"}, Value: "hot", Usage: "sort posts [hot, top, rising, new, controversial]"},
 			&cli.StringFlag{Name: "time", Aliases: []string{"t"}, Value: "week", Usage: "time period to sort posts by [hour, day, week, month, year, all]"},
 			&cli.IntFlag{Name: "limit", Aliases: []string{"l"}, Value: 5, Usage: "number of posts to include in the video"},
 			&cli.BoolFlag{Name: "nsfw", Aliases: []string{"n"}, Usage: "include NSFW content"},
+			&cli.DurationFlag{Name: "duration", Aliases: []string{"d"}, Value: 30 * time.Second, Usage: "max duration of each individual video"},
 			&cli.StringFlag{Name: "size", Aliases: []string{"S"}, Value: "360p", Usage: "dimensions of the output video [360p, 720p, 1080p, WxH]"},
 			&cli.StringFlag{Name: "cache-dir", Aliases: []string{"C"}, Value: cacheDir, Usage: "cache directory for video downloads"},
 			&cli.StringFlag{Name: "cache-keep", Aliases: []string{"K"}, Value: "1d", Usage: "duration after which to delete cache entries"},
@@ -49,6 +51,7 @@ func execCreate(c *cli.Context) error {
 	limit := c.Int("limit")
 	size := c.String("size")
 	nsfw := c.Bool("nsfw")
+	duration := c.Duration("duration")
 	cacheDir := c.String("cache-dir")
 	cacheKeep := c.String("cache-keep")
 	if c.NArg() < 1 {
@@ -81,6 +84,7 @@ func execCreate(c *cli.Context) error {
 		Time:       time,
 		Limit:      limit,
 		NSFW:       nsfw,
+		Duration:   duration,
 		OutputSize: size,
 		OutputFile: filename,
 		CacheDir:   cacheDir,

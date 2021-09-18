@@ -1,9 +1,12 @@
 package util
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"os/exec"
+	"strconv"
+	"time"
 )
 
 // ConcatVideos concats multiples videos into one using ffmpeg
@@ -36,11 +39,11 @@ func ConcatVideos(infiles []string, scale, comment, outfile string) ([]byte, err
 	var filter, concat string
 	for i, filename := range infiles {
 		filter += fmt.Sprintf("[%d:v]scale=%s:force_original_aspect_ratio=decrease,pad=%s:(ow-iw)/2:(oh-ih)/2,setsar=1[v%d];\n", i, scale, scale, i)
-		withAudio, err := HasAudioStream(filename)
+		meta, err := VideoMetadata(filename)
 		if err != nil {
 			return nil, err
 		}
-		if withAudio {
+		if meta.HasAudio {
 			concat += fmt.Sprintf("[v%d][%d:a]", i, i)
 		} else {
 			concat += fmt.Sprintf("[v%d][%d:a]", i, len(infiles)) // anullsrc (silence audio stream)
@@ -60,13 +63,34 @@ func ConcatVideos(infiles []string, scale, comment, outfile string) ([]byte, err
 	return cmd.CombinedOutput()
 }
 
-// HasAudioStream returns true if the given file has an audio stream and false if it has not
-// See https://stackoverflow.com/a/21447100/1440785
-func HasAudioStream(filename string) (bool, error) {
-	cmd := exec.Command("ffprobe", "-show_streams", "-select_streams", "a", "-loglevel", "error", filename)
+type AVMetadata struct {
+	Duration time.Duration
+	HasAudio bool
+}
+
+// VideoMetadata reads metadata from the given filename
+func VideoMetadata(filename string) (*AVMetadata, error) {
+	// { "streams": [
+	//    { "codec_type": "video", "duration": "63.766992", ... },
+	//    ...
+	// ] }
+	cmd := exec.Command("ffprobe", "-show_streams", "-print_format", "json", "-loglevel", "error", filename)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return len(bytes.TrimSpace(output)) > 0, nil
+	res := gjson.GetBytes(output, `streams.0.duration`)
+	if !res.Exists() {
+		return nil, errors.New("unexpected ffprobe output, cannot find duration")
+	}
+	duration, err := strconv.ParseFloat(res.String(), 64)
+	if err != nil {
+		return nil, err
+	}
+	res = gjson.GetBytes(output, `streams.#(codec_type="audio")`)
+	hasAudio := res.Exists()
+	return &AVMetadata{
+		Duration: time.Second * time.Duration(duration),
+		HasAudio: hasAudio,
+	}, nil
 }
